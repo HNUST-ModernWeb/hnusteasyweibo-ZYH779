@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>分享圈</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; }
+        
+        .navbar {
+            background: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo { font-size: 1.5rem; font-weight: bold; color: #2563eb; text-decoration: none; }
+        .nav-links { display: flex; gap: 2rem; }
+        .nav-links a { text-decoration: none; color: #666; }
+        .nav-links a.active { color: #2563eb; }
+        
+        .container { max-width: 800px; margin: 2rem auto; padding: 0 1rem; }
+        
+        .post-card {
+            background: white;
+            border-radius: 16px;
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .post-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }
+        .post-avatar {
+            width: 48px; height: 48px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+        .post-author { font-weight: 600; }
+        .post-time { font-size: 0.75rem; color: #999; }
+        .post-content { margin-bottom: 1rem; line-height: 1.6; }
+        
+        .post-stats {
+            display: flex;
+            gap: 1.5rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid #f0f0f0;
+        }
+        
+        .post-stats button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #666;
+        }
+        
+        .quick-post-card {
+            background: white;
+            border-radius: 16px;
+            padding: 1.25rem;
+            margin-bottom: 2rem;
+        }
+        
+        .quick-post-input {
+            display: flex;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+        
+        .quick-post-input input {
+            flex: 1;
+            padding: 0.75rem;
+            border: 1px solid #e5e7eb;
+            border-radius: 24px;
+            outline: none;
+        }
+        
+        .btn-primary {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 0.5rem 1.25rem;
+            border-radius: 24px;
+            cursor: pointer;
+        }
+        
+        .btn-secondary {
+            background: #f3f4f6;
+            color: #666;
+            border: none;
+            padding: 0.5rem 1.25rem;
+            border-radius: 24px;
+            cursor: pointer;
+        }
+        
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 24px;
+            z-index: 1000;
+        }
+        
+        @keyframes fadeOut {
+            0% { opacity: 1; }
+            70% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+        
+        @media (max-width: 640px) {
+            .navbar { padding: 0.75rem 1rem; }
+            .container { margin: 1rem auto; }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <a href="#" class="logo">📝 分享圈</a>
+        <div class="nav-links">
+            <a href="#" class="active" onclick="showHome()">首页</a>
+            <a href="#" onclick="showPublish()">发布</a>
+            <a href="#" onclick="showProfile()">我的</a>
+        </div>
+    </nav>
+
+    <main class="container" id="app">
+        <!-- 内容会动态加载 -->
+    </main>
+
+    <script>
+        // 数据存储
+        let posts = [];
+        let currentUser = { id: 'user1', name: '当前用户', avatar: '👤' };
+        let currentPage = 'home';
+        
+        // 初始化数据
+        function initData() {
+            const saved = localStorage.getItem('social_posts');
+            if (saved) {
+                posts = JSON.parse(saved);
+            } else {
+                posts = [
+                    {
+                        id: '1',
+                        author: '小明',
+                        avatar: '😊',
+                        content: '今天天气真好！分享给大家看看～',
+                        likes: ['user2'],
+                        comments: [{ author: '小红', content: '确实不错！' }],
+                        timestamp: Date.now() - 3600000,
+                        userId: 'user2'
+                    },
+                    {
+                        id: '2',
+                        author: '小红',
+                        avatar: '🌸',
+                        content: '推荐一本好书：《JavaScript高级程序设计》',
+                        likes: [],
+                        comments: [],
+                        timestamp: Date.now() - 7200000,
+                        userId: 'user3'
+                    }
+                ];
+                saveData();
+            }
+        }
+        
+        function saveData() {
+            localStorage.setItem('social_posts', JSON.stringify(posts));
+        }
+        
+        function formatTime(timestamp) {
+            const diff = Date.now() - timestamp;
+            const minutes = Math.floor(diff / 60000);
+            const hours = Math.floor(diff / 3600000);
+            const days = Math.floor(diff / 86400000);
+            if (minutes < 1) return '刚刚';
+            if (minutes < 60) return `${minutes}分钟前`;
+            if (hours < 24) return `${hours}小时前`;
+            return `${days}天前`;
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        function showToast(message) {
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.textContent = message;
+            toast.style.animation = 'fadeOut 2s ease';
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 2000);
+        }
+        
+        // 渲染首页
+        function renderHome() {
+            const container = document.getElementById('app');
+            container.innerHTML = `
+                <div class="quick-post-card">
+                    <div class="quick-post-input">
+                        <div class="post-avatar" style="width: 40px; height: 40px;">${currentUser.avatar}</div>
+                        <input type="text" placeholder="分享你的想法..." id="quickContent">
+                    </div>
+                    <div class="quick-post-actions">
+                        <button class="btn-secondary" onclick="showPublish()">📷 图文</button>
+                        <button class="btn-primary" onclick="quickPublish()">发布</button>
+                    </div>
+                </div>
+                <div id="feedContainer"></div>
+            `;
+            renderFeed();
+        }
+        
+        function renderFeed() {
+            const feedContainer = document.getElementById('feedContainer');
+            if (!feedContainer) return;
+            
+            if (posts.length === 0) {
+                feedContainer.innerHTML = '<div style="text-align:center;padding:3rem;color:#999;">暂无动态，快来发布第一条吧！</div>';
+                return;
+            }
+            
+            feedContainer.innerHTML = posts.map(post => `
+                <div class="post-card">
+                    <div class="post-header">
+                        <div class="post-avatar">${post.avatar}</div>
+                        <div>
+                            <div class="post-author">${escapeHtml(post.author)}</div>
+                            <div class="post-time">${formatTime(post.timestamp)}</div>
+                        </div>
+                    </div>
+                    <div class="post-content">${escapeHtml(post.content)}</div>
+                    <div class="post-stats">
+                        <button onclick="handleLike('${post.id}')">
+                            ${post.likes.includes(currentUser.id) ? '❤️' : '🤍'} ${post.likes.length}
+                        </button>
+                        <button onclick="showComments('${post.id}')">
+                            💬 ${post.comments.length}
+                        </button>
+                        ${post.userId === currentUser.id ? `<button onclick="deletePost('${post.id}')">🗑️ 删除</button>` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function handleLike(postId) {
+            const post = posts.find(p => p.id === postId);
+            if (post) {
+                const index = post.likes.indexOf(currentUser.id);
+                if (index === -1) {
+                    post.likes.push(currentUser.id);
+                } else {
+                    post.likes.splice(index, 1);
+                }
+                saveData();
+                renderFeed();
+            }
+        }
+        
+        function quickPublish() {
+            const content = document.getElementById('quickContent')?.value;
+            if (!content?.trim()) {
+                alert('请输入内容');
+                return;
+            }
+            
+            const newPost = {
+                id: Date.now().toString(),
+                author: currentUser.name,
+                avatar: currentUser.avatar,
+                content: content,
+                likes: [],
+                comments: [],
+                timestamp: Date.now(),
+                userId: currentUser.id
+            };
+            
+            posts.unshift(newPost);
+            saveData();
+            renderFeed();
+            document.getElementById('quickContent').value = '';
+            showToast('发布成功！');
+        }
+        
+        function deletePost(postId) {
+            if (confirm('确定删除吗？')) {
+                const index = posts.findIndex(p => p.id === postId);
+                if (index !== -1) {
+                    posts.splice(index, 1);
+                    saveData();
+                    renderFeed();
+                    showToast('删除成功');
+                }
+            }
+        }
+        
+        function showComments(postId) {
+            const post = posts.find(p => p.id === postId);
+            if (!post) return;
+            
+            let commentHtml = '<div style="margin-top: 1rem;">';
+            post.comments.forEach(comment => {
+                commentHtml += `<div style="padding: 0.5rem 0; border-bottom: 1px solid #f0f0f0;">
+                    <strong>${escapeHtml(comment.author)}</strong>: ${escapeHtml(comment.content)}
+                </div>`;
+            });
+            commentHtml += `
+                <div style="margin-top: 1rem; display: flex; gap: 0.5rem;">
+                    <input type="text" id="commentInput" placeholder="写评论..." style="flex:1; padding:0.5rem; border:1px solid #e5e7eb; border-radius:20px;">
+                    <button onclick="addComment('${postId}')" class="btn-primary" style="padding:0.5rem 1rem;">发送</button>
+                </div>
+            </div>`;
+            
+            const modal = document.createElement('div');
+            modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000;';
+            modal.innerHTML = `<div style="background:white;border-radius:16px;padding:1.5rem;max-width:500px;width:90%;max-height:80%;overflow:auto;">
+                <h3>评论</h3>
+                ${commentHtml}
+                <button onclick="this.parentElement.parentElement.remove()" style="margin-top:1rem;width:100%;padding:0.5rem;background:#f3f4f6;border:none;border-radius:8px;">关闭</button>
+            </div>`;
+            document.body.appendChild(modal);
+        }
+        
+        function addComment(postId) {
+            const input = document.getElementById('commentInput');
+            const content = input?.value.trim();
+            if (!content) return;
+            
+            const post = posts.find(p => p.id === postId);
+            if (post) {
+                post.comments.push({
+                    author: currentUser.name,
+                    content: content
+                });
+                saveData();
+                input.value = '';
+                showToast('评论成功');
+                // 刷新评论窗口
+                document.querySelector('[style*="position:fixed"]')?.remove();
+                showComments(postId);
+            }
+        }
+        
+        // 渲染发布页
+        function renderPublish() {
+            const container = document.getElementById('app');
+            container.innerHTML = `
+                <div class="post-card">
+                    <h2 style="margin-bottom: 1rem;">发布新动态</h2>
+                    <textarea id="publishContent" placeholder="分享你的想法..." style="width:100%;min-height:150px;padding:0.75rem;border:1px solid #e5e7eb;border-radius:12px;font-family:inherit;margin-bottom:1rem;"></textarea>
+                    <div style="margin-bottom: 1rem;">
+                        <label style="display:inline-block;padding:0.5rem 1rem;background:#f3f4f6;border-radius:24px;cursor:pointer;">
+                            📷 上传图片
+                            <input type="file" id="publishImage" accept="image/*" style="display:none;" onchange="previewImage(this)">
+                        </label>
+                        <div id="imagePreview" style="margin-top:0.5rem;"></div>
+                    </div>
+                    <div style="display:flex;gap:1rem;justify-content:flex-end;">
+                        <button class="btn-secondary" onclick="showHome()">取消</button>
+                        <button class="btn-primary" onclick="publishPost()">发布</button>
+                    </div>
+                </div>
+            `;
+        }
+        
+        let currentImageData = null;
+        
+        function previewImage(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    currentImageData = e.target.result;
+                    document.getElementById('imagePreview').innerHTML = `<img src="${currentImageData}" style="max-width:100%;border-radius:12px;">`;
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+        
+        function publishPost() {
+            const content = document.getElementById('publishContent')?.value;
+            if (!content?.trim() && !currentImageData) {
+                alert('请输入内容或上传图片');
+                return;
+            }
+            
+            const newPost = {
+                id: Date.now().toString(),
+                author: currentUser.name,
+                avatar: currentUser.avatar,
+                content: content || '分享了图片',
+                image: currentImageData,
+                likes: [],
+                comments: [],
+                timestamp: Date.now(),
+                userId: currentUser.id
+            };
+            
+            posts.unshift(newPost);
+            saveData();
+            currentImageData = null;
+            showToast('发布成功！');
+            showHome();
+        }
+        
+        // 渲染个人主页
+        function renderProfile() {
+            const userPosts = posts.filter(p => p.userId === currentUser.id);
+            const container = document.getElementById('app');
+            container.innerHTML = `
+                <div class="post-card" style="text-align:center;">
+                    <div class="post-avatar" style="width:80px;height:80px;font-size:3rem;margin:0 auto 1rem;">${currentUser.avatar}</div>
+                    <h2>${currentUser.name}</h2>
+                    <p style="color:#666;margin-top:0.5rem;">发布了 ${userPosts.length} 条动态</p>
+                    <button onclick="showPublish()" class="btn-primary" style="margin-top:1rem;">+ 发布新动态</button>
+                </div>
+                <h3 style="margin:1rem 0 0.5rem;">我的动态</h3>
+                <div id="myPosts"></div>
+            `;
+            
+            const myPostsContainer = document.getElementById('myPosts');
+            if (userPosts.length === 0) {
+                myPostsContainer.innerHTML = '<div style="text-align:center;padding:2rem;color:#999;">暂无动态</div>';
+            } else {
+                myPostsContainer.innerHTML = userPosts.map(post => `
+                    <div class="post-card">
+                        <div class="post-content">${escapeHtml(post.content)}</div>
+                        <div class="post-time">${formatTime(post.timestamp)}</div>
+                        <button onclick="deletePost('${post.id}')" style="margin-top:0.5rem;background:none;border:none;color:#ef4444;cursor:pointer;">删除</button>
+                    </div>
+                `).join('');
+            }
+        }
+        
+        // 页面切换
+        function showHome() {
+            currentPage = 'home';
+            renderHome();
+            updateNavActive();
+        }
+        
+        function showPublish() {
+            currentPage = 'publish';
+            renderPublish();
+            updateNavActive();
+        }
+        
+        function showProfile() {
+            currentPage = 'profile';
+            renderProfile();
+            updateNavActive();
+        }
+        
+        function updateNavActive() {
+            document.querySelectorAll('.nav-links a').forEach((link, index) => {
+                const pages = ['home', 'publish', 'profile'];
+                if (pages[index] === currentPage) {
+                    link.classList.add('active');
+                } else {
+                    link.classList.remove('active');
+                }
+            });
+        }
+        
+        // 启动应用
+        initData();
+        showHome();
+    </script>
+</body>
+</html>
